@@ -100,7 +100,7 @@
         <div class="instructions">
             <h2>Steps</h2>
             <ol>
-                <li>Login to Apex and go to your PA Charts Page (<a href="https://apextraderfunding.com/member/AccountSummary/index/pa/acc" target="_blank">https://apextraderfunding.com/member/AccountSummary/index/pa/acc</a>)</li>
+              <li>Login to Apex and go to your PA Charts Page (<a href="https://apextraderfunding.com/member/AccountSummary/index/pa/acc" target="_blank">https://apextraderfunding.com/member/AccountSummary/index/pa/acc</a>)</li>
                 <li>Right-click within the page and View Source <br><div class="screenshot-placeholder"><img src="Step2-ViewSource.png"></div></li>
                 <li>Select and copy the whole line that looks like <code>&lt;script&gt;var mc_accounts_data = {</code> (or you can select all and copy)<br><div class="screenshot-placeholder"><img src="Step3-CopyHTML.png"></div></li>
                 <li>Paste into the box below to generate.</li>
@@ -150,8 +150,12 @@
                         let tradeDates = [];
                         let closedPnLs = [];
                         activeEntries.forEach(entry => {
+                            totalPnL += entry.ClosedPnl;
+                        });
+
+                        activeEntries.forEach(entry => {
                             const date = new Date(entry.TradeDate).toLocaleDateString();
-                            const isHighPnL = (Math.abs(entry.ClosedPnl) >= 0.3 * entry.AcctBal) ? 'Yes' : 'No';
+                            const isHighPnL = (Math.abs(entry.ClosedPnl) >= 0.3 * totalPnL) ? 'Yes' : 'No';
                             const row = `<tr>
                                 <td>${date}</td>
                                 <td>${entry.ClosedPnl}</td>
@@ -161,7 +165,6 @@
                             </tr>`;
                             table.innerHTML += row;
 
-                            totalPnL += entry.ClosedPnl;
                             tradeDates.push(date);
                             closedPnLs.push(entry.ClosedPnl);
                         });
