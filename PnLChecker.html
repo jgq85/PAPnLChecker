@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Data Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .instructions {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .instructions h2 {
+            color: #007BFF;
+        }
+        .instructions ol {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        .account {
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .account h3 {
+            margin: 0 0 15px 0;
+            color: #007BFF;
+        }
+        .account table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .account table, .account th, .account td {
+            border: 1px solid #ddd;
+        }
+        .account th, .account td {
+            padding: 10px;
+            text-align: left;
+        }
+        .account th {
+            background-color: #f8f9fa;
+        }
+        #data-input {
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+        #generate-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #generate-button:hover {
+            background-color: #0056b3;
+        }
+        .screenshot-placeholder {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #999;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="instructions">
+            <h2>Steps</h2>
+            <ol>
+                <li>Login to Apex and go to your PA Charts Page (<a href="https://apextraderfunding.com/member/AccountSummary/index/pa/acc" target="_blank">https://apextraderfunding.com/member/AccountSummary/index/pa/acc</a>)</li>
+                <li>Right-click within the page and View Source <br><div class="screenshot-placeholder"><img src="Step2-ViewSource.png"></div></li>
+                <li>Select and copy the whole line that looks like <code>&lt;script&gt;var mc_accounts_data = {</code><br><div class="screenshot-placeholder"><img src="Step3-CopyHTML.png"></div></li>
+                <li>Paste into the box below to generate.</li>
+            </ol>
+        </div>
+        <h1>Active Account Data</h1>
+        <textarea id="data-input" placeholder="Paste your script data here"></textarea>
+        <button id="generate-button">Generate</button>
+        <div id="account-display"></div>
+    </div>
+
+    <script>
+        document.getElementById('generate-button').addEventListener('click', function() {
+            const dataInput = document.getElementById('data-input').value;
+            const displayArea = document.getElementById('account-display');
+            displayArea.innerHTML = '';
+
+            try {
+                // Extract the JSON part from the script
+                const jsonData = dataInput.match(/var mc_accounts_data = (.*);<\/script>/)[1];
+                const mc_accounts_data = JSON.parse(jsonData);
+
+                // Process the data
+                for (const account in mc_accounts_data.data) {
+                    const accountData = mc_accounts_data.data[account];
+                    const activeEntries = accountData.filter(entry => entry.Status === "Active");
+
+                    if (activeEntries.length > 0) {
+                        const accountDiv = document.createElement('div');
+                        accountDiv.className = 'account';
+                        
+                        const accountHeader = document.createElement('h3');
+                        accountHeader.textContent = account;
+                        accountDiv.appendChild(accountHeader);
+
+                        const table = document.createElement('table');
+                        const tableHeader = `<tr>
+                            <th>Trade Date</th>
+                            <th>Closed PnL</th>
+                            <th>Account Balance</th>
+                            <th>Auto Liquidation</th>
+                            <th>30%+ PnL</th>
+                        </tr>`;
+                        table.innerHTML = tableHeader;
+
+                        let totalPnL = 0;
+                        let tradeDates = [];
+                        let closedPnLs = [];
+                        activeEntries.forEach(entry => {
+                            const date = new Date(entry.TradeDate).toLocaleDateString();
+                            const isHighPnL = (Math.abs(entry.ClosedPnl) >= 0.3 * entry.AcctBal) ? 'Yes' : 'No';
+                            const row = `<tr>
+                                <td>${date}</td>
+                                <td>${entry.ClosedPnl}</td>
+                                <td>${entry.AcctBal}</td>
+                                <td>${entry.AutoLiquid}</td>
+                                <td>${isHighPnL}</td>
+                            </tr>`;
+                            table.innerHTML += row;
+
+                            totalPnL += entry.ClosedPnl;
+                            tradeDates.push(date);
+                            closedPnLs.push(entry.ClosedPnl);
+                        });
+
+                        const avgPnL = (totalPnL / activeEntries.length).toFixed(2);
+                        const summary = document.createElement('p');
+                        summary.textContent = `Daily Average PnL: ${avgPnL}`;
+                        accountDiv.appendChild(summary);
+                        accountDiv.appendChild(table);
+
+                        // Create chart canvas
+                        const canvas = document.createElement('canvas');
+                        canvas.id = `chart-${account}`;
+                        accountDiv.appendChild(canvas);
+                        displayArea.appendChild(accountDiv);
+
+                        // Generate chart
+                        new Chart(canvas, {
+                            type: 'line',
+                            data: {
+                                labels: tradeDates,
+                                datasets: [{
+                                    label: 'Closed PnL',
+                                    data: closedPnLs,
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    x: {
+                                        display: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Trade Date'
+                                        }
+                                    },
+                                    y: {
+                                        display: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Closed PnL'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                displayArea.innerHTML = 'Error parsing data. Please make sure the script is correctly formatted.';
+            }
+        });
+    </script>
+</body>
+</html>
